@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Форма регистрации</title>
+</head>
+<body>
+    <h2>Регистрация студента</h2>
+    <form action="process.php" method="POST">
+        <label>Имя: <input type="text" name="name" required></label><br><br>
+        <label>Возраст: <input type="number" name="age" required></label><br><br>
+        <label>Факультет: <input type="text" name="faculty"></label><br><br>
+
+        <label>Форма обучения:</label><br>
+        <input type="radio" name="study_form" value="Очная" checked> Очная<br>
+        <input type="radio" name="study_form" value="Заочная"> Заочная<br><br>
+
+        <label><input type="checkbox" name="agree"> Согласен с правилами</label><br><br>
+
+        <button type="submit">Отправить</button>
+    </form>
+</body>
+</html>
