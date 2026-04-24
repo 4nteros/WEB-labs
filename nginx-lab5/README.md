@@ -1,62 +1,60 @@
-# Лабораторная работа №2: Настройка Nginx + PHP-FPM и работа с формами
+# Лабораторная работа №5: MySQL, PHP и Docker
 
 ## Автор
 **ФИО:** Богатов Андрей Николаевич  
 **Группа:** 2ПМИ-ИП2-ПГ3
 
 ## Цель работы
-Научиться конфигурировать связку Nginx + PHP-FPM в Docker, освоить основы PHP и обработку HTML-форм с помощью JavaScript без перезагрузки страницы.
+Научиться работать с базой данных MySQL через PHP. Создать таблицу для данных формы. Реализовать сохранение и вывод данных из базы на странице. Использовать классы PHP для работы с таблицей. Освоить работу с Docker-контейнерами: nginx, PHP-FPM, MySQL и Adminer.
 
 ## Ход работы
 
-### Шаг 1: Добавление PHP-FPM
-- В `docker-compose.yml` добавлен сервис `php` на базе образа `php:8.2-fpm`.
-- Настроена общая директория для кода `/var/www/html` для обоих контейнеров.
-- Сервис `web` (Nginx) теперь зависит от `php`.
+### Шаг 1: Подготовка инфраструктуры (Docker)
+- Создан `Dockerfile` для PHP-FPM с установкой расширений `pdo` и `pdo_mysql`.
+- Настроен `docker-compose.yml`, включающий сервисы:
+  - **php**: сборка из локального Dockerfile.
+  - **db**: образ `mysql:8.0` с настройкой пользователя и БД.
+  - **adminer**: для удобного управления базой (порт 8081).
+- Запуск проекта выполнен командой: `docker-compose up -d`.
 
-### Шаг 2: Настройка конфига Nginx
-- Создан файл `nginx/default.conf`.
-- Добавлена секция `location ~ \.php$`, которая перенаправляет запросы к PHP-файлам на порт 9000 контейнера `php`.
+### Шаг 2: Подключение к БД и создание таблицы
+Создан файл `db.php` для инициализации PDO-соединения:
+```php
+<?php
+$host = 'db';
+$db   = 'lab5_db';
+$user = 'lab5_user';
+$pass = 'lab5_pass';
+$dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
+$pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+```
+- В базе данных создана таблица `students` с полями: `id`, `name`, `age`, `faculty`, `agree_rules`, `study_form`.
 
-### Шаг 3: Проверка работы PHP
-- Создан файл `index.php` с функцией `phpinfo()`.
-- **Результат:** При переходе на `http://localhost:8080/index.php` отображается системная информация PHP.
-- **[См. Скриншот]**
+### Шаг 3: Создание класса Student.php
+Реализован класс для инкапсуляции логики работы с БД:
+```php
+<?php
+class Student {
+    private $pdo;
+    public function __construct($pdo) { $this->pdo = $pdo; }
 
-### Шаг 4: Создание HTML-формы (Вариант: Регистрация студента)
-- В файле `form.html` реализована форма со следующими полями:
-  - Имя (text)
-  - Возраст (number)
-  - Факультет (select)
-  - Форма обучения (radio)
-  - Согласие с правилами (checkbox)
+    public function add($name, $age, $faculty, $agree_rules, $study_form) {
+        $stmt = $this->pdo->prepare("INSERT INTO students (name, age, faculty, agree_rules, study_form) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $age, $faculty, $agree_rules, $study_form]);
+    }
 
-### Шаг 5: Обработка на JavaScript
-- Реализован перехват события `submit` через `addEventListener`.
-- Использован объект `FormData` для сбора данных.
-- Вывод результата настроен в отдельный блок `div` на странице без её перезагрузки.
+    public function getAll() {
+        return $this->pdo->query("SELECT * FROM students")->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+```
 
-## Вывод
-В ходе работы была успешно настроена среда разработки с поддержкой PHP. Изучены принципы взаимодействия веб-сервера с интерпретатором через FastCGI и основы клиентской обработки данных форм.
+### Шаг 4: Обработка данных и вывод
+- В `process.php` данные из формы передаются в метод `$student->add()`.
+- В `index.php` реализован цикл `foreach` для вывода всех записей из базы данных.
+- Проверка корректности данных в БД проводилась через **Adminer** (http://localhost:8081).
 
-## Исходный код ключевых файлов
-
-### Файл `docker-compose.yml`
-```yaml
-version: "3.9"
-services:
-  web:
-    image: nginx:1.27-alpine
-    ports:
-      - "8080:80"
-    volumes:
-      - ./code:/var/www/html
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - php
-  php:
-    image: php:8.2-fpm
-    volumes:
-      - ./code:/var/www/html
-    expose:
-      - "9000"
+### Шаг 5: Штрафное задание
+- В таблицу добавлено поле `created_at` (TIMESTAMP).
+- Реализована сортировка вывода записей по дате добавления.
+- Добавлен фильтр на странице для отображения только совершеннолетних студентов.
