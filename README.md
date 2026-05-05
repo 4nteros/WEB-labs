@@ -1,60 +1,78 @@
-# Лабораторная работа №5: MySQL, PHP и Docker
+# Лабораторная работа №6: Неореляционные базы данных (Redis, Elasticsearch, ClickHouse) и их интеграция с PHP
+
+## Тема
+Изучение нереляционных баз данных (Redis, Elasticsearch, ClickHouse) и взаимодействие с ними через API с помощью GuzzleClient.
+
+## Цель работы
+Закрепить навыки работы с HTTP-запросами и API-интерфейсами для взаимодействия с современными нереляционными СУБД. Научиться интегрировать PHP-приложение с тремя типами NoSQL-хранилищ:
+- **Redis** (ключ-значение + сортированные множества)
+- **Elasticsearch** (полнотекстовый поиск)
+- **ClickHouse** (колоночная аналитика)
+
+Дополнительная задача — развернуть сложную инфраструктуру из 5 контейнеров через Docker Compose и использовать HTTP-клиент Guzzle для отправки запросов к API баз данных.
 
 ## Автор
 **ФИО:** Богатов Андрей Николаевич  
-**Группа:** 2ПМИ-ИП2-ПГ3
-
-## Цель работы
-Научиться работать с базой данных MySQL через PHP. Создать таблицу для данных формы. Реализовать сохранение и вывод данных из базы на странице. Использовать классы PHP для работы с таблицей. Освоить работу с Docker-контейнерами: nginx, PHP-FPM, MySQL и Adminer.
+**Группа:** ИП2 (2ПМИ-ИП2-ПГ3)  
+**Вариант:** 1 (Пользователи)
 
 ## Ход работы
 
 ### Шаг 1: Подготовка инфраструктуры (Docker)
-- Создан `Dockerfile` для PHP-FPM с установкой расширений `pdo` и `pdo_mysql`.
-- Настроен `docker-compose.yml`, включающий сервисы:
-  - **php**: сборка из локального Dockerfile.
-  - **db**: образ `mysql:8.0` с настройкой пользователя и БД.
-  - **adminer**: для удобного управления базой (порт 8081).
-- Запуск проекта выполнен командой: `docker-compose up -d`.
+Настроен файл `docker-compose.yml` с пятью сервисами:
+- `nginx` – веб-сервер
+- `php` – обработка PHP-кода, установка Composer и расширений (через Dockerfile)
+- `redis` – хранилище профилей и лидерборда
+- `elasticsearch` – поисковый движок
+- `clickhouse` – аналитическая БД
 
-### Шаг 2: Подключение к БД и создание таблицы
-Создан файл `db.php` для инициализации PDO-соединения:
-```php
-<?php
-$host = 'db';
-$db   = 'lab5_db';
-$user = 'lab5_user';
-$pass = 'lab5_pass';
-$dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
-$pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-```
-- В базе данных создана таблица `students` с полями: `id`, `name`, `age`, `faculty`, `agree_rules`, `study_form`.
+В `composer.json` добавлены зависимости:
+- `predis/predis` – для работы с Redis
+- `guzzlehttp/guzzle` – для HTTP-запросов к Elasticsearch и ClickHouse
 
-### Шаг 3: Создание класса Student.php
-Реализован класс для инкапсуляции логики работы с БД:
-```php
-<?php
-class Student {
-    private $pdo;
-    public function __construct($pdo) { $this->pdo = $pdo; }
+### Шаг 2: Работа с Redis (класс `UserRedis.php`)
+Реализовано управление пользователями через **Hash** и **Sorted Set**:
+- `setUserProfile($id, $name, $age, $reputation)` – сохранение профиля в Hash
+- `addReputation($id, $points)` – увеличение репутации с обновлением Sorted Set
+- `getTopUsers($limit)` – получение топа пользователей по репутации
+- `getUserProfile($id)` – чтение профиля
 
-    public function add($name, $age, $faculty, $agree_rules, $study_form) {
-        $stmt = $this->pdo->prepare("INSERT INTO students (name, age, faculty, agree_rules, study_form) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$name, $age, $faculty, $agree_rules, $study_form]);
-    }
+### Шаг 3: Полнотекстовый поиск в Elasticsearch (класс `UserElastic.php`)
+Взаимодействие через REST API с помощью Guzzle:
+- `indexUser($id, $name, $age, $reputation)` – индексация документа в `users`
+- `searchByName($query)` – выполнение `match`-запроса по полю `name`
+- Результат поиска выводится в человекочитаемом виде (парсинг JSON-ответа)
 
-    public function getAll() {
-        return $this->pdo->query("SELECT * FROM students")->fetchAll(PDO::FETCH_ASSOC);
-    }
-}
-```
+### Шаг 4: Аналитика в ClickHouse (класс `UserClickhouse.php`)
+Работа с колоночной БД через HTTP-интерфейс (Guzzle):
+- Создание таблицы `user_events` с движком `MergeTree`
+- `insertUserEvent($userId, $eventType)` – вставка события (например, `user_created`)
+- `getTotalEventsCount()` – агрегатный запрос `SELECT count()` для получения общего числа событий
 
-### Шаг 4: Обработка данных и вывод
-- В `process.php` данные из формы передаются в метод `$student->add()`.
-- В `index.php` реализован цикл `foreach` для вывода всех записей из базы данных.
-- Проверка корректности данных в БД проводилась через **Adminer** (http://localhost:8081).
+### Шаг 5: Единая контрольная панель (`index.php`)
+Итоговый скрипт, который:
+1. Подключается ко всем трём БД через соответствующие классы.
+2. Выводит **топ-3 пользователей из Redis** (пример: Максим – 1 место, Андрей – 2).
+3. Показывает **результат поиска в Elasticsearch** по имени (например, «Андрей»).
+4. Отображает **счётчик событий из ClickHouse**.
+5. Стилизован с помощью CSS (карточки для каждого сервиса).
 
-### Шаг 5: Штрафное задание
-- В таблицу добавлено поле `created_at` (TIMESTAMP).
-- Реализована сортировка вывода записей по дате добавления.
-- Добавлен фильтр на странице для отображения только совершеннолетних студентов.
+## Результат работы
+Приложение полностью развёрнуто в Docker. Все три базы данных успешно взаимодействуют с PHP-приложением через HTTP-запросы (Guzzle) или нативные клиенты:
+- **Redis** – мгновенное чтение/запись профилей + рейтинг.
+- **Elasticsearch** – поиск пользователя «Андрей» среди проиндексированных записей.
+- **ClickHouse** – накопление и агрегация событий (общее количество записей).
+
+## Команды для управления проектом
+```bash
+# Сборка и запуск всех контейнеров
+docker-compose up -d --build
+
+# Очистка данных в Redis
+docker exec lab6_redis redis-cli flushall
+
+# Просмотр логов PHP-контейнера
+docker logs lab6_php
+
+# Переиндексация в Elasticsearch (при необходимости)
+docker exec lab6_php php /var/www/html/reindex.php
