@@ -3,8 +3,7 @@ services:
     build: .
     container_name: lab9_php
     volumes:
-      - ./code/:/var/www/html
-      - ./tests/:/var/www/html/tests
+      - ./:/var/www/html
     networks:
       - lab9_network
 
