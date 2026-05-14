@@ -6,7 +6,6 @@ on:
       - main
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -35,9 +34,12 @@ jobs:
       - name: Install dependencies
         run: docker compose -f lab9/docker-compose.yml exec -T php composer install
 
+  
+      - name: Start PHP server
+        run: docker compose -f lab9/docker-compose.yml exec -d php php -S 0.0.0.0:8000 -t code/
+
       - name: Run tests
         run: docker compose -f lab9/docker-compose.yml exec -T php ./vendor/bin/phpunit tests
-
 
       - name: Show logs on error
         if: failure()
