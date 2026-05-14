@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/../www/Student.php';
+require_once __DIR__ . '/../code/Student.php';
 
 class StudentTest extends TestCase
 {
