@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab8_php
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - lab8_network
+
+  db:
+    image: mysql:8.0
+    container_name: lab8_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_pass
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    networks:
+      - lab8_network
+
+networks:
+  lab8_network:
+    driver: bridge

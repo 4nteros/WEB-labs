@@ -1,0 +1,25 @@
+services:
+  php:
+    build: .
+    container_name: lab9_php
+    volumes:
+      - ./code/:/var/www/html
+      - ./tests/:/var/www/html/tests
+    networks:
+      - lab9_network
+
+  db:
+    image: mysql:8.0
+    container_name: lab9_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_pass
+      MYSQL_ROOT_PASSWORD: root_password
+    networks:
+      - lab9_network
+
+networks:
+  lab9_network:
+    driver: bridge
